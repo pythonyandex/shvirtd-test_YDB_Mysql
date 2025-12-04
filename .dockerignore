@@ -1,0 +1,7 @@
+# Игнорировать всё
+./.*
+./vag*
+# Docker
+.dockerignore
+Dockerfile*
+docker-compose*.yml

@@ -1,0 +1,55 @@
+
+# Подключаем proxy.yaml
+include:
+  - path:
+      - proxy.yaml
+
+services:
+  web:
+    container_name: web-app
+    #    build:
+    #   context: .
+    #   dockerfile: Dockerfile.python
+    image: web-app
+    networks:
+      backend:
+        ipv4_address: 172.20.0.5
+    environment:
+      - DB_HOST=db
+      - DB_USER=${MYSQL_USER}
+      - DB_PASSWORD=${MYSQL_PASSWORD}
+      - DB_NAME=${MYSQL_DATABASE}
+    restart: always
+    depends_on:
+      - db
+    dns:
+      - 8.8.8.8
+  db:
+    image: mysql:8
+    container_name: mysql-db
+    networks:
+      backend:
+        ipv4_address: 172.20.0.10
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+    restart: always
+    command: 
+    ## - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --bind-address=0.0.0.0
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+networks:
+  backend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+volumes:
+  mysql_data:
