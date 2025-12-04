@@ -1,43 +1,78 @@
 from datetime import datetime
 import os
+import time
 from contextlib import contextmanager, asynccontextmanager
 
 import mysql.connector
+from mysql.connector import Error
 from fastapi import FastAPI, Request, Depends, Header
 from typing import Optional
 
 
 # --- 1. Конфигурация ---
 # Считываем конфигурацию БД из переменных окружения
-db_host = os.environ.get('DB_HOST', '127.0.0.1')
+db_host = os.environ.get('DB_HOST', 'db')
 db_user = os.environ.get('DB_USER', 'app')
-db_password = os.environ.get('DB_PASSWORD', 'very_strong')
+db_password = os.environ.get('DB_PASSWORD', 'QwErTy1234')
 db_name = os.environ.get('DB_NAME', 'example')
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Код, который выполнится перед запуском приложения
-    print("Приложение запускается...")
-    try:
-        with get_db_connection() as db:
-            cursor = db.cursor()
-            create_table_query = f"""
-            CREATE TABLE IF NOT EXISTS {db_name}.requests (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                request_date DATETIME,
-                request_ip VARCHAR(255)
-            )
-            """
-            cursor.execute(create_table_query)
-            db.commit()
-            print("Соединение с БД установлено и таблица 'requests' готова к работе.")
-            cursor.close()
-    except mysql.connector.Error as err:
-        print(f"Ошибка при подключении к БД или создании таблицы: {err}")
+    print("=" * 50)
+    print("ПРИЛОЖЕНИЕ ЗАПУСКАЕТСЯ...")
+    print(f"Параметры БД: host={db_host}, user={db_user}, db={db_name}")
+    print("=" * 50)
     
+    # МНОГОКРАТНЫЕ ПОПЫТКИ подключения
+    max_retries = 15  # Увеличили до 15 попыток
+    connected = False
+    
+    for attempt in range(max_retries):
+        try:
+            print(f"\n[Попытка {attempt + 1}/{max_retries}] Подключение к БД...")
+            with get_db_connection() as db:
+                cursor = db.cursor()
+                print("✅ Подключение успешно!")
+                
+                # Проверяем/создаем таблицу
+                create_table_query = """
+                CREATE TABLE IF NOT EXISTS requests (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    request_date DATETIME,
+                    request_ip VARCHAR(255)
+                )
+                """
+                cursor.execute(create_table_query)
+                db.commit()
+                
+                # Проверяем что таблица существует
+                cursor.execute("SHOW TABLES LIKE 'requests'")
+                result = cursor.fetchone()
+                if result:
+                    print("✅ Таблица 'requests' существует или создана")
+                else:
+                    print("⚠️  Таблица 'requests' не найдена после создания")
+                
+                cursor.close()
+                connected = True
+                print("🎉 БД готова к работе!")
+                break  # Успешно, выходим из цикла
+                
+        except Error as err:
+            print(f"❌ Ошибка подключения: {err}")
+            if attempt < max_retries - 1:
+                wait_time = 3
+                print(f"⏳ Жду {wait_time} секунд перед следующей попыткой...")
+                time.sleep(wait_time)
+            else:
+                print("💥 Не удалось подключиться к БД после всех попыток")
+    
+    if not connected:
+        print("🚨 ВНИМАНИЕ: Приложение запускается БЕЗ подключения к БД!")
+    
+    print("=" * 50)
     yield
-    
-    # Код, который выполнится при остановке приложения
     print("Приложение останавливается.")
 
 
@@ -72,7 +107,7 @@ def get_client_ip(x_real_ip: Optional[str] = Header(None)):
     return x_real_ip
 
 
-# --- 5. Основной эндпоинт ---
+# --- 4. Основной эндпоинт ---
 @app.get("/")
 def index(request: Request, ip_address: Optional[str] = Depends(get_client_ip)):
     final_ip = ip_address  # Только из X-Forwarded-For, без fallback
@@ -124,7 +159,7 @@ def get_requests():
             cursor.execute(query)
             records = cursor.fetchall()
             cursor.close()
-            
+
             # Преобразуем записи в читабельный формат
             result = []
             for record in records:
@@ -133,7 +168,7 @@ def get_requests():
                     "request_date": record[1].strftime("%Y-%m-%d %H:%M:%S") if record[1] else None,
                     "request_ip": record[2]
                 })
-            
+
             return {
                 "total_records": len(result),
                 "records": result
