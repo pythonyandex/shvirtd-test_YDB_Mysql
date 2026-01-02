@@ -35,9 +35,9 @@ services:
     volumes:
       - /etc/ssl/certs/yandex-ca.pem:/etc/ssl/certs/yandex-ca.pem:ro
     extra_hosts:
-      - "rc1a-lup7249mt9fr6plj.mdb.yandexcloud.net:192.168.10.6"
+      - "${mysql_host}:\$(dig +short ${mysql_host} | head -1)"
     environment:
-      DB_HOST: "rc1a-lup7249mt9fr6plj.mdb.yandexcloud.net"
+      DB_HOST: "${mysql_host}"
       DB_USER: "app_user"
       DB_PASSWORD: "Rm2014!!"
       DB_NAME: "app_database"
