@@ -1,10 +1,14 @@
 FROM python:3.12-slim
+# Mysql-client
+RUN apt-get update && \
+    apt-get install -y default-mysql-client  && \
+    ls
 
 #  Ваш код здесь #
 WORKDIR /app
 # Запускаем приложение с помощью uvicorn, делая его доступным по сети
 
-COPY requirements.txt . 
+COPY requirements.txt .
 # Устанавливаем uvicorn и fastapi явно
 RUN pip install --no-cache-dir -r requirements.txt
 
