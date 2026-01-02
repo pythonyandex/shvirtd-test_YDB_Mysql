@@ -23,18 +23,18 @@ async def lifespan(app: FastAPI):
     print("ПРИЛОЖЕНИЕ ЗАПУСКАЕТСЯ...")
     print(f"Параметры БД: host={db_host}, user={db_user}, db={db_name}")
     print("=" * 50)
-    
+
     # МНОГОКРАТНЫЕ ПОПЫТКИ подключения
     max_retries = 15  # Увеличили до 15 попыток
     connected = False
-    
+
     for attempt in range(max_retries):
         try:
             print(f"\n[Попытка {attempt + 1}/{max_retries}] Подключение к БД...")
             with get_db_connection() as db:
                 cursor = db.cursor()
                 print("✅ Подключение успешно!")
-                
+
                 # Проверяем/создаем таблицу
                 create_table_query = """
                 CREATE TABLE IF NOT EXISTS requests (
@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
                 """
                 cursor.execute(create_table_query)
                 db.commit()
-                
+
                 # Проверяем что таблица существует
                 cursor.execute("SHOW TABLES LIKE 'requests'")
                 result = cursor.fetchone()
@@ -53,12 +53,12 @@ async def lifespan(app: FastAPI):
                     print("✅ Таблица 'requests' существует или создана")
                 else:
                     print("⚠️  Таблица 'requests' не найдена после создания")
-                
+
                 cursor.close()
                 connected = True
                 print("🎉 БД готова к работе!")
                 break  # Успешно, выходим из цикла
-                
+
         except Error as err:
             print(f"❌ Ошибка подключения: {err}")
             if attempt < max_retries - 1:
@@ -67,10 +67,10 @@ async def lifespan(app: FastAPI):
                 time.sleep(wait_time)
             else:
                 print("💥 Не удалось подключиться к БД после всех попыток")
-    
+
     if not connected:
         print("🚨 ВНИМАНИЕ: Приложение запускается БЕЗ подключения к БД!")
-    
+
     print("=" * 50)
     yield
     print("Приложение останавливается.")
@@ -91,10 +91,12 @@ def get_db_connection():
     db = None
     try:
         db = mysql.connector.connect(
-            host=db_host,
-            user=db_user,
-            password=db_password,
-            database=db_name
+            host=os.getenv("DB_HOST"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            database=os.getenv("DB_NAME"),
+            ssl_ca='/etc/ssl/certs/yandex-ca.pem',  # Путь к CA-сертификату
+            ssl_verify_cert=True
         )
         yield db
     finally:
