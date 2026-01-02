@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
 
   reverse-proxy:
@@ -8,7 +10,7 @@ services:
     ports:
     - "127.0.0.1:8080:8080"
     volumes:
-    - ./haproxy/reverse/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:rw 
+    - ./haproxy/reverse/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:rw
 
   ingress-proxy:
     image: nginx:latest
@@ -17,7 +19,7 @@ services:
     volumes:
     - ./nginx/ingress/default.conf:/etc/nginx/conf.d/default.conf:rw
     - ./nginx/ingress/nginx.conf:/etc/nginx/nginx.conf:rw
-    
+
   web:
     container_name: web-app
     #    build:
@@ -30,42 +32,22 @@ services:
     networks:
       backend:
         ipv4_address: 172.20.0.5
-    environment:
-      - DB_HOST=db
-      - DB_USER=${MYSQL_USER}
-      - DB_PASSWORD=${MYSQL_PASSWORD}
-      - DB_NAME=${MYSQL_DATABASE}
-    restart: always
-    depends_on:
-      - db
-    dns:
-      - 8.8.8.8
-  db:
-    image: mysql:8
-    container_name: mysql-db
-    networks:
-      backend:
-        ipv4_address: 172.20.0.10
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${DB_PASSWORD}
-    restart: always
-    command: 
-    ## - --default-authentication-plugin=mysql_native_password
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-      - --bind-address=0.0.0.0
     volumes:
-      - mysql_data:/var/lib/mysql
-        # - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - /etc/ssl/certs/yandex-ca.pem:/etc/ssl/certs/yandex-ca.pem:ro
+    extra_hosts:
+      - "rc1a-lup7249mt9fr6plj.mdb.yandexcloud.net:192.168.10.6"
+    environment:
+      DB_HOST: "rc1a-lup7249mt9fr6plj.mdb.yandexcloud.net"
+      DB_USER: "app_user"
+      DB_PASSWORD: "Rm2014!!"
+      DB_NAME: "app_database"
+    restart: always
+    dns:
+      - 127.0.0.53
+      - 8.8.8.8
 networks:
   backend:
     driver: bridge
     ipam:
       config:
         - subnet: 172.20.0.0/24
-
-volumes:
-  mysql_data:
